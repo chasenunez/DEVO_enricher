@@ -1,0 +1,3 @@
+frictionless
+python-dateutil # optional - more robust datetime parsing (recommended)
+pytest # optional - tests
