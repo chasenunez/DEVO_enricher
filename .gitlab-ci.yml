@@ -1,4 +1,4 @@
-# .gitlab-ci.yml - run tests using a Python image (avoids herokuish test hook)
+# .gitlab-ci.yml
 stages:
   - test
 
@@ -27,35 +27,45 @@ before_script:
 test:
   stage: test
   script:
-    # Wait for Postgres to become available (retry loop)
     - |
-      retry_count=0
+      set -euo pipefail
+
+      # Simple retry loop that attempts a tiny Python connection check to Postgres.
+      # Everything here is *inside* the YAML block scalar so 'do' / 'done' remain
+      # part of the shell script (not YAML keys).
+      retries=0
+      max_retries=30
+
       until python - <<'PY'
-import os, sys, time
-import psycopg2
+import os, sys
 try:
+    import psycopg2
     conn = psycopg2.connect(
-        dbname=os.getenv("POSTGRES_DB"),
-        user=os.getenv("POSTGRES_USER"),
-        password=os.getenv("POSTGRES_PASSWORD"),
-        host=os.getenv("DB_HOST") or "postgres",
+        dbname=os.getenv("POSTGRES_DB", "mydb"),
+        user=os.getenv("POSTGRES_USER", "postgres"),
+        password=os.getenv("POSTGRES_PASSWORD", "postgres"),
+        host=os.getenv("DB_HOST", "postgres"),
         connect_timeout=2
     )
     conn.close()
-    print("postgres reachable")
     sys.exit(0)
 except Exception as e:
-    print("postgres not ready:", e)
+    # Non-zero exit means not ready yet
+    print("pg connect failed:", e)
     sys.exit(2)
 PY
       do
-        retry_count=$((retry_count + 1)) || true
-        if [ "$retry_count" -ge 15 ]; then echo "Postgres did not become ready"; exit 1; fi
-        echo "Waiting for postgres... ($retry_count)"
+        retries=$((retries+1))
+        if [ "$retries" -ge "$max_retries" ]; then
+          echo "Postgres did not become ready after $retries retries"
+          exit 1
+        fi
+        echo "Waiting for postgres... ($retries / $max_retries)"
         sleep 1
       done
-    # Run tests
-    - pytest -q
+
+      # Run tests
+      pytest -q
   artifacts:
     when: always
     reports:
