@@ -146,4 +146,4 @@ Please follow idiomatic Python style (PEP8) and include tests for major parsing/
 
 # License
 
-This project is provided under the **MIT License**. See `LICENSE` for details (or replace with your preferred license).
+This project is provided under the **MIT License**. See `LICENSE` for details.
