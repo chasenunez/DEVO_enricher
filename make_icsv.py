@@ -23,8 +23,10 @@ import csv
 import json
 import os
 import re
+import itertools
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
+from itertools import islice
 
 from frictionless import Resource
 
@@ -197,7 +199,8 @@ def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> T
     """
     # Try reading a small sample to detect delimiter if not provided
     with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-        sample = "".join([next(fh) for _ in range(10)])
+        with open(infile, "r", encoding="utf-8") as fh:
+            sample = "".join(islice(fh, 10))  # reads at most 10 lines, no StopIteration
     detected = detect_delimiter(sample) if delimiter is None else delimiter
 
     # Use frictionless Resource to read and also verify we can open the file
