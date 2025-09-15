@@ -400,7 +400,7 @@ def make_icsv_from_csv(
     if detected_delim is None:
         # try to detect from infile sample
         with open(infile, "r", encoding="utf-8", errors="ignore") as fh:
-            sample = "".join([next(fh) for _ in range(5)])
+            sample = "".join(islice(fh, 5))
         detected_delim = detect_delimiter(sample)
     # Choose iCSV field_delimiter: if comma, prefer '|' to make metadata merging less ambiguous.
     icsv_delim = detected_delim if detected_delim != "," else "|"
