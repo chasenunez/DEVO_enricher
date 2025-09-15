@@ -199,7 +199,7 @@ def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> T
     """
     # Try reading a small sample to detect delimiter if not provided
     with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-        with open(infile, "r", encoding="utf-8") as fh:
+        with open(path, "r", encoding="utf-8") as fh:
             sample = "".join(islice(fh, 10))  # reads at most 10 lines, no StopIteration
     detected = detect_delimiter(sample) if delimiter is None else delimiter
 
