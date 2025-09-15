@@ -25,38 +25,22 @@ before_script:
 
 test:
   stage: test
-  script:
-    - |
-      set -euo pipefail
+  script: |
+    set -euo pipefail
 
-      echo "Waiting for Postgres to be ready..."
-      for i in $(seq 1 30); do
-        if python - <<'PY'
-import os, sys
-import psycopg2
-try:
-    conn = psycopg2.connect(
-        dbname=os.getenv("POSTGRES_DB", "mydb"),
-        user=os.getenv("POSTGRES_USER", "postgres"),
-        password=os.getenv("POSTGRES_PASSWORD", "postgres"),
-        host=os.getenv("DB_HOST", "postgres"),
-        connect_timeout=2
-    )
-    conn.close()
-except Exception:
-    sys.exit(1)
-PY
-        then
-          echo "Postgres is up!"
-          break
-        else
-          echo "Postgres not ready yet..."
-          sleep 1
-        fi
-      done
+    echo "Waiting for Postgres to be ready..."
+    for i in $(seq 1 30); do
+      if pg_isready -h "$DB_HOST" -U "$POSTGRES_USER" >/dev/null 2>&1; then
+        echo "Postgres is up!"
+        break
+      else
+        echo "Postgres not ready yet..."
+        sleep 1
+      fi
+    done
 
-      # Run tests
-      pytest -q
+    # Run tests
+    pytest -q
   artifacts:
     when: always
     reports:
