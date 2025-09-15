@@ -1,4 +1,3 @@
-# .gitlab-ci.yml
 stages:
   - test
 
@@ -30,16 +29,12 @@ test:
     - |
       set -euo pipefail
 
-      # Simple retry loop that attempts a tiny Python connection check to Postgres.
-      # Everything here is *inside* the YAML block scalar so 'do' / 'done' remain
-      # part of the shell script (not YAML keys).
-      retries=0
-      max_retries=30
-
-      until python - <<'PY'
+      echo "Waiting for Postgres to be ready..."
+      for i in $(seq 1 30); do
+        if python - <<'PY'
 import os, sys
+import psycopg2
 try:
-    import psycopg2
     conn = psycopg2.connect(
         dbname=os.getenv("POSTGRES_DB", "mydb"),
         user=os.getenv("POSTGRES_USER", "postgres"),
@@ -48,20 +43,16 @@ try:
         connect_timeout=2
     )
     conn.close()
-    sys.exit(0)
-except Exception as e:
-    # Non-zero exit means not ready yet
-    print("pg connect failed:", e)
-    sys.exit(2)
+except Exception:
+    sys.exit(1)
 PY
-      do
-        retries=$((retries+1))
-        if [ "$retries" -ge "$max_retries" ]; then
-          echo "Postgres did not become ready after $retries retries"
-          exit 1
+        then
+          echo "Postgres is up!"
+          break
+        else
+          echo "Postgres not ready yet..."
+          sleep 1
         fi
-        echo "Waiting for postgres... ($retries / $max_retries)"
-        sleep 1
       done
 
       # Run tests
