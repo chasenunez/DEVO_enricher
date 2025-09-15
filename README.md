@@ -9,6 +9,8 @@ Generate self-documented iCSV files and a Frictionless Table Schema from plain C
 
 It uses the [frictionless](https://framework.frictionlessdata.io) library for reading and schema compatibility and only otherwise depends on Python’s standard library.
 
+* eventually, it would be ideal for usability for us to have code that can injest a .xsl file directly from Microsoft Excel, but this poses a whole host of other complications pasrsing the often ... creative ... formatting present in excel files (color coding, rich text formatting, errant equations, macros, etc.)
+
 ---
 
 # Features
