@@ -1,0 +1,62 @@
+# .gitlab-ci.yml - run tests using a Python image (avoids herokuish test hook)
+stages:
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POSTGRES_DB: mydb
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  DB_HOST: postgres
+
+image: python:3.11-slim
+
+services:
+  - name: postgres:9.6.16
+    alias: postgres
+
+cache:
+  paths:
+    - .cache/pip
+
+before_script:
+  - python -V
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+test:
+  stage: test
+  script:
+    # Wait for Postgres to become available (retry loop)
+    - |
+      retry_count=0
+      until python - <<'PY'
+import os, sys, time
+import psycopg2
+try:
+    conn = psycopg2.connect(
+        dbname=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+        host=os.getenv("DB_HOST") or "postgres",
+        connect_timeout=2
+    )
+    conn.close()
+    print("postgres reachable")
+    sys.exit(0)
+except Exception as e:
+    print("postgres not ready:", e)
+    sys.exit(2)
+PY
+      do
+        retry_count=$((retry_count + 1)) || true
+        if [ "$retry_count" -ge 15 ]; then echo "Postgres did not become ready"; exit 1; fi
+        echo "Waiting for postgres... ($retry_count)"
+        sleep 1
+      done
+    # Run tests
+    - pytest -q
+  artifacts:
+    when: always
+    reports:
+      junit: junit.xml
