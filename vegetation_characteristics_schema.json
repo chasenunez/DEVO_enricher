@@ -1,0 +1,86 @@
+{
+  "fields": [
+    {
+      "name": "laufnummer",
+      "type": "integer",
+      "constraints": {
+        "minimum": 129,
+        "maximum": 220,
+        "required": true
+      }
+    },
+    {
+      "name": "site",
+      "type": "string",
+      "constraints": {
+        "required": true
+      }
+    },
+    {
+      "name": "sample",
+      "type": "string",
+      "constraints": {
+        "required": true
+      }
+    },
+    {
+      "name": "Vegetation_cover",
+      "type": "integer",
+      "constraints": {
+        "minimum": 20,
+        "maximum": 100,
+        "required": true
+      }
+    },
+    {
+      "name": "Cumulative cover",
+      "type": "number",
+      "constraints": {
+        "minimum": 20.6,
+        "maximum": 180.6,
+        "required": true
+      }
+    },
+    {
+      "name": "Cumulative cover trees",
+      "type": "integer",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 115,
+        "required": true
+      }
+    },
+    {
+      "name": "Cumulative cover shrubs",
+      "type": "number",
+      "constraints": {
+        "minimum": 0.0,
+        "maximum": 95.0,
+        "required": true
+      }
+    },
+    {
+      "name": "Cumulative cover herbs",
+      "type": "number",
+      "constraints": {
+        "minimum": 0.8,
+        "maximum": 135.0,
+        "required": true
+      }
+    }
+  ],
+  "missingValues": [
+    "",
+    "nan",
+    "NULL",
+    "-999",
+    "null",
+    "NaN",
+    "N/A",
+    "NA",
+    "-999.0",
+    "n/a",
+    "na",
+    "-999.000000"
+  ]
+}

@@ -1,0 +1,84 @@
+# iCSV 1.0 UTF-8
+# [METADATA]
+# iCSV_version = 1.0
+# field_delimiter = ;
+# rows = 64
+# columns = 8
+# creation_date = 2025-09-16T13:17:27.526171Z
+# nodata = 
+# generator = make_icsv.py (frictionless-based)
+
+# [FIELDS]
+# fields = laufnummer;site;sample;Vegetation_cover;Cumulative cover;Cumulative cover trees;Cumulative cover shrubs;Cumulative cover herbs
+# types = integer;string;string;integer;number;integer;number;number
+# min = 129;;;20;20.6;0;0.0;0.8
+# max = 220;;;100;180.6;115;95.0;135.0
+# missing_count = 0;0;0;0;0;0;0;0
+# description = ;;;;;;;
+
+# [DATA]
+laufnummer;site;sample;Vegetation_cover;Cumulative cover;Cumulative cover trees;Cumulative cover shrubs;Cumulative cover herbs
+129;Chriesbach;Control_1;90;121.5;0;0;121.5
+130;Chriesbach;Control_2;20;20.6;0;0;20.6
+131;Chriesbach;Inflow_1;96;117;0;0;117
+132;Chriesbach;Inflow_2;85;101.2;55;30;16.2
+133;Chriesbach;Pool_1;96;119.2;0;0;119.2
+134;Chriesbach;Pool_2;96;110.1;0;7;103.1
+135;Chriesbach;Outflow_1;98;120.2;0;0;120.2
+136;Chriesbach;Outflow_2;99;119.7;0;0;119.7
+141;Leugene;Control_1;99;136;0;25;111
+142;Leugene;Control_2;98;101.2;0;0;101.2
+143;Leugene;Inflow_1;98;102.1;0;43;59.1
+144;Leugene;Inflow_2;99;109.6;0;0;109.6
+145;Leugene;Pool_1;99;155.7;60;45;50.7
+146;Leugene;Pool_2;98;107;0;0;107
+147;Leugene;Outflow_1;90;92.4;0;15;77.4
+148;Leugene;Outflow_2;100;114.6;0;0;114.6
+153;Gaebelbach;Control_1;99;106.8;0;0;106.8
+154;Gaebelbach;Control_2;100;118.3;0;0;118.3
+155;Gaebelbach;Inflow_1;95;112;15;5;92
+156;Gaebelbach;Inflow_2;99;145.8;25;12;108.8
+157;Gaebelbach;Pool_1;75;109.8;0;0;109.8
+158;Gaebelbach;Pool_2;85;180.6;55;26;99.6
+159;Gaebelbach;Outflow_1;98;87.4;0;5;82.4
+160;Gaebelbach;Outflow_2;50;57.1;0;0;57.1
+165;Weierbach;Control_1;99;123.5;0;0;123.5
+166;Weierbach;Control_2;100;135;0;0;135
+167;Weierbach;Inflow_1;97;128.1;0;15;113.1
+168;Weierbach;Inflow_2;99;128.1;25;28;75.1
+169;Weierbach;Pool_1;90;98.5;0;0;98.5
+170;Weierbach;Pool_2;99;89.5;0;30;59.5
+171;Weierbach;Outflow_1;100;124.5;0;27;97.5
+172;Weierbach;Outflow_2;90;52.6;0;3;49.6
+177;Haslibach;Control_1;85;39.2;20;2;17.2
+178;Haslibach;Control_2;95;158;75;0;83
+179;Haslibach;Inflow_1;50;60.2;0;0;60.2
+180;Haslibach;Inflow_2;98;161.7;60;24;77.7
+181;Haslibach;Pool_1;75;85.7;0;0;85.7
+182;Haslibach;Pool_2;99;123.5;15;95;13.5
+183;Haslibach;Outflow_1;45;48.2;0;0;48.2
+184;Haslibach;Outflow_2;98;51;0;18;33
+189;Riedgrabe;Control_1;97;109.2;30;5;74.2
+190;Riedgrabe;Control_2;98;109.3;0;31;78.3
+191;Riedgrabe;Inflow_1;98;112;0;26;86
+192;Riedgrabe;Inflow_2;98;112;0;10;102
+193;Riedgrabe;Pool_1;80;102.3;0;2;100.3
+194;Riedgrabe;Pool_2;97;52.2;0;11;41.2
+195;Riedgrabe;Outflow_1;98;110.6;0;2;108.6
+196;Riedgrabe;Outflow_2;99;80.5;30;1;49.5
+201;Coruz;Control_1;98;141.1;95;31;15.1
+202;Coruz;Control_2;99;67.1;0;0;67.1
+203;Coruz;Inflow_1;98;114.2;0;0;114.2
+204;Coruz;Inflow_2;98;100.9;0;55;45.9
+205;Coruz;Pool_1;75;56.4;0;0;56.4
+206;Coruz;Pool_2;90;91.4;0;73;18.4
+207;Coruz;Outflow_1;90;108.6;0;15;93.6
+208;Coruz;Outflow_2;98;65.9;0;1;64.9
+213;Talent;Control_1;99;119.6;99;3;17.6
+214;Talent;Control_2;99;112.7;100;0;12.7
+215;Talent;Inflow_1;80;74.3;0;3;71.3
+216;Talent;Inflow_2;99;40.8;0;40;0.8
+217;Talent;Pool_1;98;89.5;0;35.5;54
+218;Talent;Pool_2;99;142.6;115;25;2.6
+219;Talent;Outflow_1;98;53.3;0;12;41.3
+220;Talent;Outflow_2;99;35.2;0;0;35.2
