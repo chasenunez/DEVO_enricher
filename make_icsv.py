@@ -23,8 +23,10 @@ import csv
 import json
 import os
 import re
+import itertools
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
+from itertools import islice
 
 from frictionless import Resource
 
@@ -197,7 +199,8 @@ def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> T
     """
     # Try reading a small sample to detect delimiter if not provided
     with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-        sample = "".join([next(fh) for _ in range(10)])
+        with open(path, "r", encoding="utf-8") as fh:
+            sample = "".join(islice(fh, 10))  # reads at most 10 lines, no StopIteration
     detected = detect_delimiter(sample) if delimiter is None else delimiter
 
     # Use frictionless Resource to read and also verify we can open the file
@@ -397,7 +400,7 @@ def make_icsv_from_csv(
     if detected_delim is None:
         # try to detect from infile sample
         with open(infile, "r", encoding="utf-8", errors="ignore") as fh:
-            sample = "".join([next(fh) for _ in range(5)])
+            sample = "".join(islice(fh, 5))
         detected_delim = detect_delimiter(sample)
     # Choose iCSV field_delimiter: if comma, prefer '|' to make metadata merging less ambiguous.
     icsv_delim = detected_delim if detected_delim != "," else "|"

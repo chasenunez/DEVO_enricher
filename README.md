@@ -22,8 +22,6 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 * Produces a Frictionless-compatible schema JSON (including `missingValues` and field `constraints`).
 * CLI: `python make_icsv.py input.csv` — easy to integrate into workflows.
 
----
-
 # Requirements
 
 * Python 3.8+ (works with 3.9, 3.10, 3.11)
@@ -34,8 +32,6 @@ Install dependency:
 ```bash
 pip install frictionless
 ```
-
----
 
 # Quick start
 
@@ -49,8 +45,6 @@ By default this will create:
 
 * `data.icsv` — the iCSV file with metadata header and data section.
 * `data_schema.json` — the generated Frictionless schema for validation.
-
----
 
 # Usage & CLI options
 
@@ -83,8 +77,6 @@ python make_icsv.py observations.csv --delimiter ";" --nodata "-999"
 # Custom output names and app profile
 python make_icsv.py observations.csv --out obs.icsv --schema-out obs_schema.json --app METEO
 ```
-
----
 
 # Example iCSV header (generated)
 
@@ -121,8 +113,6 @@ Notes:
 * `field_delimiter` in the metadata is chosen to avoid ambiguity (if the input CSV uses `,`, the tool prefers `|` for the iCSV header).
 * All metadata header lines are prefixed with `#` as required by the iCSV spec.
 
----
-
 # What the generated `schema.json` contains
 
 * `fields` with `name`, `type` and optionally `format`, `description` and `constraints` (`minimum`, `maximum`, `required`).
@@ -136,8 +126,6 @@ report = Resource(path="data_clean.csv", schema="data_schema.json").validate()
 print(report.as_descriptor())
 ```
 
----
-
 # Design decisions & limitations
 
 * Type inference is conservative: it tests integer → number → datetime → string. If the uploaded data contains complex formats (mixed types in a column), the script will fall back to `string`. This probably a problem for dates. therefore:
@@ -145,14 +133,10 @@ print(report.as_descriptor())
 * Column `description` fields are left blank by default. You can fill them manually or extend the script to call an LLM or a mapping dictionary for domain-specific descriptions.
 * The script prefers not to change the raw data; it only writes a cleaned iCSV header and writes the CSV data as-is (padding/truncating rows to match the header length where needed).
 
----
-
 # Extending the tool (ideas)
 
 * Add `--validate` flag to run Frictionless validation automatically after generation and write a validation report.
 * date handling is a bit fragile, so we could integrate `dateutil.parser` for robust date parsing.
-
----
 
 # Contributing
 
@@ -164,8 +148,6 @@ Contributions welcome! Suggested workflow:
 
 Please follow idiomatic Python style (PEP8) and include tests for major parsing/inference behaviors.
 
----
-
 # License
 
-This project is provided under the **MIT License**. See `LICENSE` for details (or replace with your preferred license).
+This project is provided under the **MIT License**. See `LICENSE` for details.
