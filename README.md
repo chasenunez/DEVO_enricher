@@ -162,34 +162,3 @@ Recommendations:
 * Datetime detection is based on `datetime.fromisoformat()` plus common `strptime` formats. Installing `python-dateutil` improves parsing coverage.
 * Column `description` fields are left blank by default; you can populate them manually or via an external mapping / LLM.
 * The tool attempts not to change raw data — it writes an iCSV header and the input data rows (padding/truncating rows to match header length if necessary).
-
-## Tests & CI
-
-* A suggested test (included in repo) uses `pytest` to run a small smoke-test: create a tiny CSV/XLSX and run `make_icsv.py` to confirm outputs are written.
-* For CI (GitLab/GitHub Actions), use a Python image and install `requirements.txt` before running `pytest`. If your CI previously relied on `herokuish buildpack test`, replace that with an explicit `pip install -r requirements.txt` + `pytest` step (see project CI config).
-
-## Extending the tool (ideas)
-
-* `--sheet` flag to choose an Excel worksheet.
-* Option to preserve numeric types from Excel (avoid casting everything to strings) — would improve numeric detection but increase complexity.
-* `--validate` flag to run Frictionless validation automatically and emit a validation report.
-* Optional LLM-based automatic column descriptions (careful with sensitive data).
-
-## Contributing
-
-Contributions welcome! Suggested workflow:
-
-1. Fork the repo and create a feature branch.
-2. Add tests and update documentation for new features.
-3. Open a pull request describing the change.
-
-Follow PEP8 and include tests for major parsing/inference behaviors. See `CONTRIBUTING.md` for more details.
-
-## License
-
-This project is provided under the **MIT License**. See `LICENSE` for details.
-
-If you want, I can:
-
-* add a short section with an example Excel-based pytest test (creates an XLSX and runs the script), or
-* add a `--sheet` CLI option and update the script and tests accordingly — pick one and I’ll produce the code change.
