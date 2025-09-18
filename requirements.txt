@@ -1,4 +1,10 @@
 frictionless
+openpyxl
+pandas
 pytest
 psycopg2-binary
 python-dateutil  # optional, recommended for improved datetime parsing
+xlrd==1.2.0    # only if you need legacy .xls support
+
+
+
