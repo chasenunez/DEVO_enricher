@@ -1,20 +1,23 @@
-# csv_enrichment engine
-# trying to invert some of the frictionless code that makes a schema from iCSV's metadata section in order to ingest a normal CSV, and then spit out a metadata section that can be combined with the [DATA] cetion in order to make an iCSV. the benefit of doing it this way is that we can now *create* a metadata section that makes the best schema for data checking. ideally, then, researchers can just feed in a data csv, get back an icsv, and then have the ability to check their data, as well as ingest into envidat etc. with greater finadability, Accessability, nteroperability, and Reusability.
-
 #!/usr/bin/env python3
 """
 make_icsv.py
 
-Generate a self-documented iCSV (iCSV 1.0) from a plain CSV and write a
-Frictionless Table Schema JSON for validation.
+Convert a plain CSV or Excel spreadsheet (.xls/.xlsx) into a self-documented iCSV,
+and generate a Frictionless Table Schema JSON for validation.
 
 Usage:
-    python make_icsv.py input.csv [--delimiter DELIM] [--application APP] [--nodata NODATA]
+    python make_icsv.py input.csv
+    python make_icsv.py input.xlsx
 
 Notes:
-- Requires: frictionless (pip install frictionless)
-- The script uses the frictionless Resource to load the CSV and count rows/columns,
-  and uses built-in heuristics to infer types and simple constraints.
+- CSV files: uses frictionless + csv for reading and inspection.
+- Excel files: uses pandas to read the first sheet, converts to rows of strings.
+- Recommended dependencies (add to requirements.txt):
+    frictionless
+    pandas
+    openpyxl      # for .xlsx
+    xlrd==1.2.0   # for old .xls support (optional)
+    pytest (dev)
 """
 
 from __future__ import annotations
@@ -23,45 +26,46 @@ import csv
 import json
 import os
 import re
-import itertools
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
 from itertools import islice
 
-from frictionless import Resource
+# frictionless is required by spec; import it (raise helpful error if missing)
+try:
+    from frictionless import Resource
+except Exception as e:
+    raise RuntimeError(
+        "frictionless is required. Install with: pip install frictionless"
+    ) from e
+
+# pandas is optional (only needed for Excel). We'll lazy-import it when needed.
+PANDAS_AVAILABLE = True
+try:
+    import pandas as pd
+except Exception:
+    PANDAS_AVAILABLE = False
 
 # Common placeholders considered as missing values
 COMMON_MISSING = {"", "NA", "N/A", "na", "n/a", "NULL", "null", "nan", "NaN", "-999", "-999.0", "-999.000000"}
-
 
 # -------------------------
 # Type inference utilities
 # -------------------------
 INT_RE = re.compile(r"^-?\d+$")
-FLOAT_RE = re.compile(r"^-?\d+\.\d+$")
+FLOAT_RE = re.compile(r"^-?\d+(\.\d+)?$")
 
 
 def try_parse_datetime(s: str) -> bool:
-    """
-    Try to detect if a string is a datetime. We attempt ISO parsing first,
-    then try common strptime formats.
-    """
     if not s:
         return False
     s = s.strip()
-    # Quick heuristic: contains '-' or ':' or 'T' or '/' and digits
     if not re.search(r"[0-9]", s):
         return False
-
-    # 1) Try native ISO parser (Python 3.7+)
     try:
-        # fromisoformat supports many ISO-like formats but not all; ignore timezone complexities here
         datetime.fromisoformat(s)
         return True
     except Exception:
         pass
-
-    # 2) Try a few common formats
     fmts = [
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M",
@@ -85,27 +89,19 @@ def try_parse_datetime(s: str) -> bool:
 
 
 def infer_column_type(values: List[str], missing_values: set) -> str:
-    """
-    Infer a Frictionless-style type for a column given sample values.
-    Returns one of: 'integer', 'number', 'datetime', 'string'
-    """
-    # Filter out missing placeholders
     pruned = [v.strip() for v in values if v is not None and v.strip() not in missing_values]
     if not pruned:
-        return "string"  # no data -> default to string
-
+        return "string"
     is_int = True
     is_float = True
     is_datetime = True
-
     for v in pruned:
         if not INT_RE.match(v):
             is_int = False
-        if not (INT_RE.match(v) or FLOAT_RE.match(v)):
+        if not FLOAT_RE.match(v) and not INT_RE.match(v):
             is_float = False
         if not try_parse_datetime(v):
             is_datetime = False
-
     if is_int:
         return "integer"
     if is_float:
@@ -119,10 +115,6 @@ def infer_column_type(values: List[str], missing_values: set) -> str:
 # Aggregation / stats
 # -------------------------
 def compute_numeric_minmax(pruned: List[str], as_type: str) -> Tuple[Optional[float], Optional[float]]:
-    """
-    Given pruned (non-missing) list of numeric-like strings and a declared type,
-    compute min and max (return None if not computable).
-    """
     if not pruned:
         return None, None
     try:
@@ -136,17 +128,12 @@ def compute_numeric_minmax(pruned: List[str], as_type: str) -> Tuple[Optional[fl
 
 
 def compute_datetime_minmax(pruned: List[str]) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Compute min/max datetimes and return ISO strings if possible.
-    """
     parsed = []
     for v in pruned:
         try:
-            # try fromisoformat first, fallback to several formats
             try:
                 dt = datetime.fromisoformat(v)
             except Exception:
-                # try known formats
                 fmts = [
                     "%Y-%m-%d %H:%M:%S",
                     "%Y-%m-%d %H:%M",
@@ -178,12 +165,9 @@ def compute_datetime_minmax(pruned: List[str]) -> Tuple[Optional[str], Optional[
 
 
 # -------------------------
-# CSV / Frictionless helpers
+# CSV / Excel loaders
 # -------------------------
 def detect_delimiter(sample_text: str) -> str:
-    """
-    Use csv.Sniffer to detect delimiter. Fallback to comma.
-    """
     try:
         dialect = csv.Sniffer().sniff(sample_text, delimiters=[",", "|", ";", ":", "\t", "/"])
         return dialect.delimiter
@@ -191,27 +175,23 @@ def detect_delimiter(sample_text: str) -> str:
         return ","
 
 
-def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> Tuple[List[str], List[List[str]], int]:
+def load_csv_rows(path: str, delimiter: Optional[str] = None) -> Tuple[List[str], List[List[str]], int]:
     """
-    Load header and rows using frictionless (and csv fallback). Returns (header, rows, row_count).
-    We still use csv module for reliable delimiter control, but frictionless is used to create a Resource
-    to show we used it (and for optional validation later).
+    Load header and rows from CSV. Returns (header, rows, row_count).
+    Uses csv module with delimiter detection. Reads safely (doesn't assume N lines).
     """
-    # Try reading a small sample to detect delimiter if not provided
+    # sample a few lines to detect delimiter
     with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-        with open(path, "r", encoding="utf-8") as fh:
-            sample = "".join(islice(fh, 10))  # reads at most 10 lines, no StopIteration
+        sample = "".join(islice(fh, 10))
     detected = detect_delimiter(sample) if delimiter is None else delimiter
 
-    # Use frictionless Resource to read and also verify we can open the file
+    # Use frictionless Resource to show we used it (optional)
     try:
-        # frictionless will also infer schema if needed; we only instantiate to follow the requirement
         _ = Resource(path, format="csv", control={"delimiter": detected})
     except Exception:
-        # If frictionless fails, continue — csv fallback will handle it
+        # resource instantiation is best-effort
         pass
 
-    # Use csv module with the detected delimiter to build rows
     header = []
     rows: List[List[str]] = []
     with open(path, "r", encoding="utf-8", errors="ignore", newline="") as fh:
@@ -224,14 +204,72 @@ def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> T
     return header, rows, len(rows)
 
 
+def load_excel_rows(path: str) -> Tuple[List[str], List[List[str]], int]:
+    """
+    Load the first sheet of an .xls/.xlsx file and return header, rows, row_count.
+    Uses pandas to read (pandas must be installed).
+    Converts all values to strings and replaces missing values with ''.
+    """
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError(
+            "Reading Excel files requires pandas. Install with: pip install pandas openpyxl xlrd==1.2.0"
+        )
+    # Read first sheet
+    try:
+        # read_excel will pick a suitable engine if available (openpyxl for xlsx).
+        df = pd.read_excel(path, sheet_name=0, engine=None)
+    except Exception as e:
+        # Try explicit engines fallback
+        try:
+            df = pd.read_excel(path, sheet_name=0, engine="openpyxl")
+        except Exception:
+            # last try for older .xls
+            try:
+                df = pd.read_excel(path, sheet_name=0, engine="xlrd")
+            except Exception as e2:
+                raise RuntimeError(f"Failed to read Excel file '{path}': {e} / {e2}") from e2
+
+    # Replace NaN/NA with empty strings, convert to string for downstream processing
+    df = df.fillna("")
+    # Ensure column names are strings
+    header = [str(c) for c in df.columns.tolist()]
+    # Convert rows to lists of strings
+    rows: List[List[str]] = []
+    for idx, row in df.iterrows():
+        # row may contain numbers/datetimes; cast each to string and strip
+        row_vals = []
+        for c in header:
+            val = row.get(c, "")
+            # If pandas Timestamp, convert to ISO
+            if hasattr(val, "isoformat"):
+                try:
+                    sval = val.isoformat()
+                except Exception:
+                    sval = str(val)
+            else:
+                sval = "" if (pd.isna(val) or val is None) else str(val)
+            row_vals.append(sval)
+        rows.append(row_vals)
+    return header, rows, len(rows)
+
+
+def load_rows(path: str, delimiter: Optional[str] = None) -> Tuple[List[str], List[List[str]], int]:
+    """
+    Unified loader: handles .csv, .xls, .xlsx based on file extension.
+    """
+    ext = os.path.splitext(path)[1].lower()
+    if ext in (".csv",):
+        return load_csv_rows(path, delimiter=delimiter)
+    elif ext in (".xls", ".xlsx"):
+        return load_excel_rows(path)
+    else:
+        raise ValueError(f"Unsupported file extension '{ext}'. Supported: .csv, .xls, .xlsx")
+
+
 # -------------------------
-# Build schema & metadata
+# Schema & metadata builders (unchanged logic)
 # -------------------------
 def build_frictionless_schema(header: List[str], col_infos: List[Dict[str, Any]], missing_values: List[str]) -> Dict[str, Any]:
-    """
-    Build a Frictionless-compatible schema (dict that can be dumped to JSON).
-    col_infos is a list of dictionaries containing: name, type, format (optional), constraints (dict)
-    """
     schema = {
         "fields": [],
         "missingValues": missing_values,
@@ -257,9 +295,6 @@ def build_icsv_metadata_section(
     srid_hint: Optional[str],
     application_profile: Optional[str],
 ) -> List[str]:
-    """
-    Prepare lines for the METADATA section (each line without '# ' prefix).
-    """
     md = []
     md.append(f"iCSV_version = 1.0")
     if application_profile:
@@ -274,29 +309,20 @@ def build_icsv_metadata_section(
         md.append(f"geometry = {geometry_hint}")
     if srid_hint:
         md.append(f"srid = {srid_hint}")
-    # recommended but optional
     md.append(f"generator = make_icsv.py (frictionless-based)")
     return md
 
 
 def build_fields_section(header: List[str], col_infos: List[Dict[str, Any]], field_delimiter: str) -> List[str]:
-    """
-    Build the list of lines in the FIELDS section (without '# ' prefix).
-    Each line is 'key = v1{delim}v2{delim}v3...'
-    We'll include: fields, types, min, max, missing_count, description
-    """
     delim = field_delimiter
-    # Helper to join values ensuring delimiter presence is safe (we won't quote inside metadata)
-    def _join(vals: List[str]) -> str:
+    def _join(vals: List[Any]) -> str:
         return delim.join(["" if v is None else str(v) for v in vals])
-
     fields_vals = header
     types_vals = [c.get("type", "") for c in col_infos]
     min_vals = [c.get("min", "") if c.get("min", "") is not None else "" for c in col_infos]
     max_vals = [c.get("max", "") if c.get("max", "") is not None else "" for c in col_infos]
     missing_count_vals = [c.get("missing_count", 0) for c in col_infos]
     desc_vals = [c.get("description", "") or "" for c in col_infos]
-
     lines = []
     lines.append(f"fields = {_join(fields_vals)}")
     lines.append(f"types = {_join(types_vals)}")
@@ -304,13 +330,9 @@ def build_fields_section(header: List[str], col_infos: List[Dict[str, Any]], fie
     lines.append(f"max = {_join(max_vals)}")
     lines.append(f"missing_count = {_join(missing_count_vals)}")
     lines.append(f"description = {_join(desc_vals)}")
-    # You could add units, standard_name, timestamp_meaning lines here similarly.
     return lines
 
 
-# -------------------------
-# iCSV writer
-# -------------------------
 def write_icsv(
     outpath: str,
     header_meta_lines: List[str],
@@ -319,44 +341,26 @@ def write_icsv(
     rows: List[List[str]],
     field_delimiter: str,
 ):
-    """
-    Write the iCSV file with proper '#' header lines and the DATA section.
-    """
     with open(outpath, "w", encoding="utf-8", newline="") as fh:
-        # Firstline
         fh.write("# iCSV 1.0 UTF-8\n")
-        # METADATA
         fh.write("# [METADATA]\n")
         for line in header_meta_lines:
             fh.write(f"# {line}\n")
         fh.write("\n")
-        # FIELDS
         fh.write("# [FIELDS]\n")
         for line in fields_meta_lines:
             fh.write(f"# {line}\n")
         fh.write("\n")
-        # DATA
         fh.write("# [DATA]\n")
-        # Write data using csv.writer so quoting is correct
         writer = csv.writer(fh, delimiter=field_delimiter)
         writer.writerow(data_header)
         for r in rows:
-            # ensure row has same length as header
             if len(r) < len(data_header):
                 r = r + [""] * (len(data_header) - len(r))
             writer.writerow(r)
 
 
-# -------------------------
-# Heuristics for geometry/srid
-# -------------------------
 def detect_geometry_hint(header: List[str]) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Basic heuristics: if header contains 'lat' and 'lon' (or 'latitude'/'longitude'),
-    set geometry to 'column:lat,lon' and srid to EPSG:4326.
-    If header contains 'geometry' column, return 'column:geometry'.
-    Otherwise return (None, None).
-    """
     lower = [h.lower() for h in header]
     if "geometry" in lower:
         idx = lower.index("geometry")
@@ -384,67 +388,55 @@ def make_icsv_from_csv(
     nodata_override: Optional[str] = None,
     application_profile: Optional[str] = None,
 ):
-    """
-    Core function: loads CSV, infers metadata, writes iCSV and schema JSON.
-    """
     if not out_icsv:
         out_icsv = os.path.splitext(infile)[0] + ".icsv"
     if not out_schema:
         out_schema = os.path.splitext(infile)[0] + "_schema.json"
 
-    header, rows, row_count = load_rows_with_frictionless(infile, delimiter=user_delimiter)
+    header, rows, row_count = load_rows(infile, delimiter=user_delimiter)
 
-    # Decide on field_delimiter for iCSV: default to '|' if input delimiter is comma to avoid common CSV pitfalls.
-    # But prefer the detected delimiter if provided by user or if input file uses something else.
+    # If input is CSV we use detected delim; for Excel choose '|' by default to avoid issues in iCSV header
     detected_delim = user_delimiter
-    if detected_delim is None:
-        # try to detect from infile sample
+    if detected_delim is None and infile.lower().endswith(".csv"):
+        # sample first up to 5 lines safely
         with open(infile, "r", encoding="utf-8", errors="ignore") as fh:
             sample = "".join(islice(fh, 5))
         detected_delim = detect_delimiter(sample)
-    # Choose iCSV field_delimiter: if comma, prefer '|' to make metadata merging less ambiguous.
-    icsv_delim = detected_delim if detected_delim != "," else "|"
+    icsv_delim = detected_delim if detected_delim and detected_delim != "," else "|"
 
-    # Detect nodata placeholder: if user provided, use that; else try to infer the most common placeholder
+    # Detect nodata placeholder
     if nodata_override is not None:
         nodata_value = nodata_override
     else:
-        # check across cells for common missing placeholders
         placeholder_counts: Dict[str, int] = {}
         for r in rows:
             for c in r:
                 if c in COMMON_MISSING:
                     placeholder_counts[c] = placeholder_counts.get(c, 0) + 1
-        # pick the most common if any, else empty string
-        if placeholder_counts:
-            nodata_value = max(placeholder_counts.items(), key=lambda x: x[1])[0]
-        else:
-            nodata_value = ""
+        nodata_value = max(placeholder_counts.items(), key=lambda x: x[1])[0] if placeholder_counts else ""
 
     # Build per-column info
     col_infos: List[Dict[str, Any]] = []
-    # transpose columns
+    # transpose columns safely
     cols: List[List[str]] = []
     if rows:
-        # normal transpose: ensure rows are padded to header len
+        # pad/truncate rows to header length
+        fixed_rows = []
         for r in rows:
             if len(r) < len(header):
                 r = r + [""] * (len(header) - len(r))
             elif len(r) > len(header):
                 r = r[: len(header)]
-        cols = list(zip(*rows))  # tuples
+            fixed_rows.append(r)
+        cols = list(zip(*fixed_rows))
     else:
         cols = [()] * len(header)
 
-    # Compute stats and infer types
     for i, name in enumerate(header):
-        # column values as strings
         col_values = [str(v).strip() for v in (cols[i] if rows else [])]
-        # pruned: non-missing values
         pruned = [v for v in col_values if v not in COMMON_MISSING and v != ""]
         inferred_type = infer_column_type(col_values, COMMON_MISSING)
         info: Dict[str, Any] = {"name": name, "type": inferred_type}
-        # constraints and min/max
         if inferred_type in ("integer", "number"):
             mn, mx = compute_numeric_minmax(pruned, inferred_type)
             info["min"] = mn
@@ -454,7 +446,6 @@ def make_icsv_from_csv(
                 constraints["minimum"] = mn
             if mx is not None:
                 constraints["maximum"] = mx
-            # if column has no missing entries -> required
             if len(pruned) == len(col_values) and len(col_values) > 0:
                 constraints["required"] = True
             if constraints:
@@ -473,24 +464,15 @@ def make_icsv_from_csv(
             if constraints:
                 info["constraints"] = constraints
         else:
-            # strings: maybe set required if no missing
             if len(pruned) == len(col_values) and len(col_values) > 0:
                 info["constraints"] = {"required": True}
-
-        # missing count and description (empty for now)
         missing_count = sum(1 for v in col_values if v in COMMON_MISSING or v == "")
         info["missing_count"] = missing_count
-        info["description"] = ""  # placeholder: user can fill later
-        # convert min/max to simple serializable forms if numeric; leave others as-is
+        info["description"] = ""
         col_infos.append(info)
 
-    # Build frictionless schema
     schema = build_frictionless_schema(header, col_infos, list(COMMON_MISSING))
-
-    # Detect geometry / srid hints
     geometry_hint, srid_hint = detect_geometry_hint(header)
-
-    # Build metadata section lines
     metadata_lines = build_icsv_metadata_section(
         field_delimiter=icsv_delim,
         header=header,
@@ -500,19 +482,12 @@ def make_icsv_from_csv(
         srid_hint=srid_hint,
         application_profile=application_profile,
     )
-
-    # Build fields section lines
     fields_lines = build_fields_section(header, col_infos, icsv_delim)
-
-    # Write iCSV
     write_icsv(out_icsv, metadata_lines, fields_lines, header, rows, icsv_delim)
     print(f"Wrote iCSV -> {out_icsv}")
-
-    # Write schema JSON
     with open(out_schema, "w", encoding="utf-8") as fh:
         json.dump(schema, fh, indent=2, ensure_ascii=False)
     print(f"Wrote Frictionless schema -> {out_schema}")
-
     return out_icsv, out_schema
 
 
@@ -520,9 +495,9 @@ def make_icsv_from_csv(
 # CLI
 # -------------------------
 def parse_args():
-    p = argparse.ArgumentParser(description="Convert CSV to iCSV + Frictionless schema.")
-    p.add_argument("infile", help="Input CSV file path")
-    p.add_argument("--delimiter", "-d", help="Force input delimiter (default: autodetect)", default=None)
+    p = argparse.ArgumentParser(description="Convert CSV or Excel (.xls/.xlsx) to iCSV + Frictionless schema.")
+    p.add_argument("infile", help="Input CSV or Excel file path (.csv, .xls, .xlsx)")
+    p.add_argument("--delimiter", "-d", help="Force input delimiter (CSV only; autodetect otherwise)", default=None)
     p.add_argument("--nodata", help="Force nodata placeholder value", default=None)
     p.add_argument("--app", help="Optional application profile for iCSV firstline", default=None)
     p.add_argument("--out", help="Output iCSV path (default: <infile>.icsv)", default=None)
@@ -532,6 +507,10 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.infile.lower().endswith((".xls", ".xlsx")) and not PANDAS_AVAILABLE:
+        print("ERROR: pandas is required to read Excel files. Install with:")
+        print("  pip install pandas openpyxl xlrd==1.2.0")
+        raise SystemExit(2)
     make_icsv_from_csv(
         infile=args.infile,
         out_icsv=args.out,
