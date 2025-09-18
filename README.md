@@ -1,64 +1,78 @@
 # make\_icsv
 
-Generate self-documented iCSV files and a Frictionless Table Schema from plain CSVs.
+Generate self-documented iCSV files and a Frictionless Table Schema from plain CSV **or Excel** files.
 
-`make_icsv` reads a plain comma separated values file (CSV), inspects each column (type inference, min/max, missing values), and writes:
+`make_icsv` inspects tabular files and produces:
 
 * a self-documented **iCSV** file (with `# iCSV 1.0 UTF-8`, `# [METADATA]`, `# [FIELDS]`, `# [DATA]` sections), and
 * a **Frictionless** `schema.json` suitable for validation.
 
-It uses the [frictionless](https://framework.frictionlessdata.io) library for reading and schema compatibility and only otherwise depends on Python’s standard library.
+This README has been updated to reflect support for `.csv`, `.xls`, and `.xlsx` inputs (Excel support requires `pandas` and an Excel engine such as `openpyxl`).
 
-* eventually, it would be ideal for usability for us to have code that can injest a .xsl file directly from Microsoft Excel, but this poses a whole host of other complications pasrsing the often ... creative ... formatting present in excel files (color coding, rich text formatting, errant equations, macros, etc.)
+## Key features
 
----
-
-# Features
-
-* Automatic delimiter detection (with the option to override).
+* Read `.csv`, `.xls`, `.xlsx` (first sheet) inputs.
+* Automatic delimiter detection for CSVs (option to override).
 * Conservative, robust type inference: `integer`, `number`, `datetime`, `string`.
 * Per-column stats: min/max, missing value counts, `required` constraint where appropriate.
-* Writes an iCSV header with required and recommended metadata keys.
-* Produces a Frictionless-compatible schema JSON (including `missingValues` and field `constraints`).
-* CLI: `python make_icsv.py input.csv` — easy to integrate into workflows.
+* Writes an iCSV header per the iCSV specification and a Frictionless Table Schema JSON.
+* CLI: `python make_icsv.py input.csv` or `python make_icsv.py input.xlsx`.
 
-# Requirements
+## Requirements
 
-* Python 3.8+ (works with 3.9, 3.10, 3.11)
-* `frictionless` (installable via pip)
+**Python 3.8+**
 
-Install dependency:
+Minimum runtime dependencies (add these to `requirements.txt`):
 
-```bash
-pip install frictionless
+```
+frictionless
+pandas
+openpyxl       # for .xlsx
+xlrd==1.2.0    # optional: for legacy .xls support (only if you must support old .xls)
+pytest         # dev / tests
+python-dateutil  # optional, improves date parsing
 ```
 
-# Quick start
-
-Save the script as `make_icsv.py` (or clone this repo) and run:
+Install dependencies:
 
 ```bash
+pip install -r requirements.txt
+```
+
+If you only need CSV support, `frictionless` is the minimal runtime requirement.
+
+> If you run the script on an Excel file but `pandas` (or the appropriate engine) is missing, the script will print a friendly error and exit. Install `pandas` + `openpyxl` to enable Excel ingestion.
+
+## Quick start
+
+Save `make_icsv.py` in your repo (or clone) and run:
+
+```bash
+# CSV
 python make_icsv.py data.csv
+
+# Excel (XLSX)
+python make_icsv.py workbook.xlsx
 ```
 
-By default this will create:
+By default the tool will create:
 
 * `data.icsv` — the iCSV file with metadata header and data section.
 * `data_schema.json` — the generated Frictionless schema for validation.
 
-# Usage & CLI options
+## CLI usage
 
-```text
+```
 usage: make_icsv.py infile [--delimiter DELIM] [--nodata NODATA] [--app APP] [--out OUT] [--schema-out SCHEMA_OUT]
 
-Convert CSV to iCSV + Frictionless schema.
+Convert CSV or Excel (.xls/.xlsx) to iCSV + Frictionless schema.
 
 positional arguments:
-  infile                Input CSV file path
+  infile                Input CSV or Excel file path (.csv, .xls, .xlsx)
 
 optional arguments:
   -h, --help            show this help message and exit
-  --delimiter, -d       Force input delimiter (default: autodetect)
+  --delimiter, -d       Force input delimiter (CSV only; autodetect otherwise)
   --nodata              Force nodata placeholder value (default: auto-detect)
   --app                 Optional application profile for iCSV firstline (written into METADATA)
   --out                 Output iCSV path (default: <infile>.icsv)
@@ -68,19 +82,19 @@ optional arguments:
 Examples:
 
 ```bash
-# Basic
+# CSV default autodetect
 python make_icsv.py observations.csv
 
-# Force delimiter and nodata
+# Force delimiter and nodata for CSV
 python make_icsv.py observations.csv --delimiter ";" --nodata "-999"
 
-# Custom output names and app profile
-python make_icsv.py observations.csv --out obs.icsv --schema-out obs_schema.json --app METEO
+# Excel input; pandas & engine required
+python make_icsv.py observations.xlsx --out obs.icsv --schema-out obs_schema.json --app METEO
 ```
 
-# Example iCSV header (generated)
+## Example iCSV header (generated)
 
-Below is a short example of what the beginning of an iCSV file produced by `make_icsv.py` looks like.
+Example of what the top of a produced iCSV looks like:
 
 ```
 # iCSV 1.0 UTF-8
@@ -110,15 +124,15 @@ timestamp|temp_C|RH|station_id|lat|lon
 
 Notes:
 
-* `field_delimiter` in the metadata is chosen to avoid ambiguity (if the input CSV uses `,`, the tool prefers `|` for the iCSV header).
-* All metadata header lines are prefixed with `#` as required by the iCSV spec.
+* If the input CSV uses comma as delimiter, the tool typically chooses `|` for the iCSV `field_delimiter` to avoid ambiguity in metadata lines.
+* All header lines in METADATA and FIELDS are prefixed with `#` per the iCSV spec.
 
-# What the generated `schema.json` contains
+## What the generated `schema.json` contains
 
-* `fields` with `name`, `type` and optionally `format`, `description` and `constraints` (`minimum`, `maximum`, `required`).
-* `missingValues` listing commonly-detected placeholders like `-999`, `NA`, `NaN`, `""`.
+* `fields` array with `name`, `type` and (when detected) `format`, `description`, and `constraints` (`minimum`, `maximum`, `required`).
+* `missingValues` listing commonly-detected placeholders like `-999`, `NA`, `NaN`, and blank strings.
 
-This schema can be used with Frictionless `Resource` validation:
+You can validate data with Frictionless:
 
 ```python
 from frictionless import Resource
@@ -126,28 +140,56 @@ report = Resource(path="data_clean.csv", schema="data_schema.json").validate()
 print(report.as_descriptor())
 ```
 
-# Design decisions & limitations
+## Excel support — important caveats
 
-* Type inference is conservative: it tests integer → number → datetime → string. If the uploaded data contains complex formats (mixed types in a column), the script will fall back to `string`. This probably a problem for dates. therefore:
-* Datetime detection uses `datetime.fromisoformat()` and a set of common `strptime` formats. For more robust parsing, consider adding `python-dateutil` (not included to avoid extra dependency).
-* Column `description` fields are left blank by default. You can fill them manually or extend the script to call an LLM or a mapping dictionary for domain-specific descriptions.
-* The script prefers not to change the raw data; it only writes a cleaned iCSV header and writes the CSV data as-is (padding/truncating rows to match the header length where needed).
+Excel files are more complicated than CSVs. the script reads **only the first worksheet** and converts all cell values to strings (with special handling for date/time-like cells). That choice is conservative and avoids surprising type coercions, but has consequences:
 
-# Extending the tool (ideas)
+* **Merged cells**: may be expanded to values or empty cells depending on engine — inspect the sheet first.
+* **Formulas**: the reader typically returns last calculated values, not the formula text.
+* **Multiple sheets**: only the first sheet is read by default.
+* **Rich formatting / comments / macros**: these are ignored; if those are important you should pre-process or export to CSV.
+* **Numeric formatting**: Excel-formatted numbers/dates may require additional handling; the script attempts ISO date detection from cell values where possible.
 
-* Add `--validate` flag to run Frictionless validation automatically after generation and write a validation report.
-* date handling is a bit fragile, so we could integrate `dateutil.parser` for robust date parsing.
+Recommendations:
 
-# Contributing
+* Prefer exporting to CSV if you control the upstream workflow.
+* Add a manual review step on complex spreadsheets.
+* If you need to read a specific sheet, add a `--sheet` flag (not currently included) — contact me and I’ll add it.
+
+## Design decisions & limitations
+
+* Type inference is conservative: integer → number → datetime → string. Mixed-format columns often fall back to `string`.
+* Datetime detection is based on `datetime.fromisoformat()` plus common `strptime` formats. Installing `python-dateutil` improves parsing coverage.
+* Column `description` fields are left blank by default; you can populate them manually or via an external mapping / LLM.
+* The tool attempts not to change raw data — it writes an iCSV header and the input data rows (padding/truncating rows to match header length if necessary).
+
+## Tests & CI
+
+* A suggested test (included in repo) uses `pytest` to run a small smoke-test: create a tiny CSV/XLSX and run `make_icsv.py` to confirm outputs are written.
+* For CI (GitLab/GitHub Actions), use a Python image and install `requirements.txt` before running `pytest`. If your CI previously relied on `herokuish buildpack test`, replace that with an explicit `pip install -r requirements.txt` + `pytest` step (see project CI config).
+
+## Extending the tool (ideas)
+
+* `--sheet` flag to choose an Excel worksheet.
+* Option to preserve numeric types from Excel (avoid casting everything to strings) — would improve numeric detection but increase complexity.
+* `--validate` flag to run Frictionless validation automatically and emit a validation report.
+* Optional LLM-based automatic column descriptions (careful with sensitive data).
+
+## Contributing
 
 Contributions welcome! Suggested workflow:
 
 1. Fork the repo and create a feature branch.
 2. Add tests and update documentation for new features.
-3. Open a pull request describing the changes.
+3. Open a pull request describing the change.
 
-Please follow idiomatic Python style (PEP8) and include tests for major parsing/inference behaviors.
+Follow PEP8 and include tests for major parsing/inference behaviors. See `CONTRIBUTING.md` for more details.
 
-# License
+## License
 
 This project is provided under the **MIT License**. See `LICENSE` for details.
+
+If you want, I can:
+
+* add a short section with an example Excel-based pytest test (creates an XLSX and runs the script), or
+* add a `--sheet` CLI option and update the script and tests accordingly — pick one and I’ll produce the code change.
