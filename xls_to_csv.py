@@ -4,6 +4,7 @@ excel_to_csv.py
 
 Convert an Excel file (.xls or .xlsx) to one or more CSV files, one per sheet.
 This script handles multiple sheets, user-specified headers, and skips blank rows.
+Future work will have to address the problem of "supra-headers" and also color coding. 
 
 Usage:
     python excel_to_csv.py input.xlsx [--outdir OUTDIR] [--sheets SHEET_LIST] [--header ROW]
