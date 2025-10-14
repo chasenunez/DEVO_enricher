@@ -5,7 +5,7 @@
 """
 make_icsv.py
 
-Generate a self-documented iCSV (iCSV 1.0) from a plain CSV and write a
+This little ditty generates a self-documented iCSV (iCSV 1.0) from a plain CSV and write a
 Frictionless Table Schema JSON for validation.
 
 Usage:
@@ -15,6 +15,10 @@ Notes:
 - Requires: frictionless (pip install frictionless)
 - The script uses the frictionless Resource to load the CSV and count rows/columns,
   and uses built-in heuristics to infer types and simple constraints.
+
+Development notes:
+- an earlier version of this code also attempted to make an iCSV from .xls/.xlsx documents, 
+  but that proved to be a bit to difficult to do in one step, so this it has been moved to a features branch for further/future development.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ from itertools import islice
 from frictionless import Resource
 
 # Common placeholders considered as missing values
-COMMON_MISSING = {"", "NA", "N/A", "na", "n/a", "NULL", "null", "nan", "NaN", "-999", "-999.0", "-999.000000"}
+COMMON_MISSING = {"", "NA", "N/A", "na", "n/a", "NULL", "null", "nan", "NaN", "-999", "-999.0", "-999.000000"} #it would be ideal if envidat had a standardized missing value, but alas.
 
 
 # -------------------------
