@@ -19,6 +19,7 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 * CLI: `python make_icsv.py input.csv` — easy to integrate into workflows.
 
 ```
+
        User                                               Admin                                       
      Front-End                                          Back-End                                      
 ┌─────────────────┐ ┌─────────────────────────────────────────────────────────────────────────────┐   
@@ -38,7 +39,7 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 │                 │ │  ┌────────────────────────────────────────────────┐    │ Informative │      │   
 │ ┌─────────────┐ │ │  │                                                ├───►│    Errors   ├────┐ │   
 │ │   Enriched  │ │ │  │                                                │    └─────────────┘    │ │   
-│ │  .iCSV file ├─┼─┼─►│             DATA VALIDATION PROGRAM            │                       │ │   
+│ │  .iCSV file ├─┼─┼─►│          ** DATA VALIDATION PROGRAM **         │                       │ │   
 │ └─────────────┘ │ │  │                                                │    ┌─────────────┐    │ │   
 │                 │ │  │                                                ├───►│  Validated  │    │ │   
 │                 │ │  └────────────────────────────────────────────────┘    │ .iCSV file  ├────┤ │   
@@ -59,7 +60,10 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 │               ◄─┼─┼───────────────────────────────────────────────────────────────────────────┘ │   
 │                 │ │                                                                             │   
 │                 │ │                                                                             │   
-└─────────────────┘ └─────────────────────────────────────────────────────────────────────────────┘   
+└─────────────────┘ └─────────────────────────────────────────────────────────────────────────────┘ 
+
+** This Program **
+
 ```
 
 # Requirements
