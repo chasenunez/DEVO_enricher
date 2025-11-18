@@ -27,7 +27,7 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 │                 │ │  ┌────────────────────────────────────────────────┐    │  Validation │      │   
 │ ┌─────────────┐ │ │  │                                                ├───►│    Schema   ├────┐ │   
 │ │   Standard  │ │ │  │                                                │    └─────────────┘    │ │   
-│ │  .CSV file  ├─┼─┼─►│               ENRICHMENT PROGRAM               │                       │ │   
+│ │  .CSV file  ├─┼─┼─►│             **  ENRICHMENT PROGRAM  **         │                       │ │   
 │ └─────────────┘ │ │  │                                                │    ┌─────────────┐    │ │   
 │                 │ │  │                                                ├───►│   Enriched  │    │ │   
 │                 │ │  └────────────────────────────────────────────────┘    │  .iCSV file ├────┤ │   
@@ -39,7 +39,7 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 │                 │ │  ┌────────────────────────────────────────────────┐    │ Informative │      │   
 │ ┌─────────────┐ │ │  │                                                ├───►│    Errors   ├────┐ │   
 │ │   Enriched  │ │ │  │                                                │    └─────────────┘    │ │   
-│ │  .iCSV file ├─┼─┼─►│          ** DATA VALIDATION PROGRAM **         │                       │ │   
+│ │  .iCSV file ├─┼─┼─►│             DATA VALIDATION PROGRAM            │                       │ │   
 │ └─────────────┘ │ │  │                                                │    ┌─────────────┐    │ │   
 │                 │ │  │                                                ├───►│  Validated  │    │ │   
 │                 │ │  └────────────────────────────────────────────────┘    │ .iCSV file  ├────┤ │   
