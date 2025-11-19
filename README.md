@@ -1,4 +1,4 @@
-# make\_icsv
+# DEVO_enricher
 
 Generate self-documented iCSV files and a Frictionless Table Schema from plain CSVs.
 
