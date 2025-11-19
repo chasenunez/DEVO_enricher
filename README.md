@@ -2,7 +2,7 @@
 
 Generate self-documented iCSV files and a Frictionless Table Schema from plain CSVs.
 
-`make_icsv` reads a plain comma separated values file (CSV), inspects each column (type inference, min/max, missing values), and writes:
+`DEVO_enricher` reads a plain comma separated values file (CSV), inspects each column (type inference, min/max, missing values), and writes:
 
 * a self-documented **iCSV** file (with `# iCSV 1.0 UTF-8`, `# [METADATA]`, `# [FIELDS]`, `# [DATA]` sections), and
 * a **Frictionless** `schema.json` suitable for validation.
@@ -16,7 +16,7 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 * Per-column stats: min/max, missing value counts, `required` constraint where appropriate.
 * Writes an iCSV header with required and recommended metadata keys.
 * Produces a Frictionless-compatible schema JSON (including `missingValues` and field `constraints`).
-* CLI: `python make_icsv.py input.csv` — easy to integrate into workflows.
+* CLI: `python DEVO_enricher.py input.csv` — easy to integrate into workflows.
 
 ```
 
@@ -79,10 +79,10 @@ pip install frictionless
 
 # Quick start
 
-Save the script as `make_icsv.py` (or clone this repo) and run:
+Save the script as `DEVO_enricher.py` (or clone this repo) and run:
 
 ```bash
-python make_icsv.py data.csv
+python DEVO_enricher.py data.csv
 ```
 
 By default this will create:
@@ -93,7 +93,7 @@ By default this will create:
 # Usage & CLI options
 
 ```text
-usage: make_icsv.py infile [--delimiter DELIM] [--nodata NODATA] [--app APP] [--out OUT] [--schema-out SCHEMA_OUT]
+usage: DEVO_enricher.py infile [--delimiter DELIM] [--nodata NODATA] [--app APP] [--out OUT] [--schema-out SCHEMA_OUT]
 
 Convert CSV to iCSV + Frictionless schema.
 
@@ -113,18 +113,18 @@ Examples:
 
 ```bash
 # Basic
-python make_icsv.py observations.csv
+python DEVO_enricher.py observations.csv
 
 # Force delimiter and nodata
-python make_icsv.py observations.csv --delimiter ";" --nodata "-999"
+python DEVO_enricher.py observations.csv --delimiter ";" --nodata "-999"
 
 # Custom output names and app profile
-python make_icsv.py observations.csv --out obs.icsv --schema-out obs_schema.json --app METEO
+python DEVO_enricher.py observations.csv --out obs.icsv --schema-out obs_schema.json --app METEO
 ```
 
 # Example iCSV header (generated)
 
-Below is a short example of what the beginning of an iCSV file produced by `make_icsv.py` looks like.
+Below is a short example of what the beginning of an iCSV file produced by `DEVO_enricher.py` looks like.
 
 ```
 # iCSV 1.0 UTF-8
@@ -136,7 +136,7 @@ Below is a short example of what the beginning of an iCSV file produced by `make
 # columns = 6
 # creation_date = 2025-09-15T12:34:56.789012Z
 # nodata = -999
-# generator = make_icsv.py (frictionless-based)
+# generator = DEVO_enricher.py (frictionless-based)
 
 # [FIELDS]
 # fields = timestamp|temp_C|RH|station_id|lat|lon
