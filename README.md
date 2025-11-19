@@ -1,23 +1,12 @@
-# DEVO_enricher
-
-Generate self-documented iCSV files and a Frictionless Table Schema from plain CSVs.
-
-`DEVO_enricher` reads a plain comma separated values file (CSV), inspects each column (type inference, min/max, missing values), and writes:
-
-* a self-documented **iCSV** file (with `# iCSV 1.0 UTF-8`, `# [METADATA]`, `# [FIELDS]`, `# [DATA]` sections), and
+**DEVO_enricher** is a small, modular Python tool that:
+- a plain comma separated values file (CSV)
+- inspects each column (type inference, min/max, missing values)
+- Generates a self-documented **iCSV** file (with `# iCSV 1.0 UTF-8`, `# [METADATA]`, `# [FIELDS]`, `# [DATA]` sections), and
 * a **Frictionless** `schema.json` suitable for validation.
 
 It uses the [frictionless](https://framework.frictionlessdata.io) library for reading and schema compatibility and only otherwise depends on Python’s standard library.
 
-# Features
-
-* Automatic delimiter detection (with the option to override).
-* Conservative, robust type inference: `integer`, `number`, `datetime`, `string`.
-* Per-column stats: min/max, missing value counts, `required` constraint where appropriate.
-* Writes an iCSV header with required and recommended metadata keys.
-* Produces a Frictionless-compatible schema JSON (including `missingValues` and field `constraints`).
-* CLI: `python DEVO_enricher.py input.csv` — easy to integrate into workflows.
-
+### Data Enrichment and Validation Orchestrator (DEVO) construct
 ```
 
        User                                               Admin                                       
@@ -65,6 +54,15 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 ** This Program **
 
 ```
+
+# Features
+
+* Automatic delimiter detection (with the option to override).
+* Conservative, robust type inference: `integer`, `number`, `datetime`, `string`.
+* Per-column stats: min/max, missing value counts, `required` constraint where appropriate.
+* Writes an iCSV header with required and recommended metadata keys.
+* Produces a Frictionless-compatible schema JSON (including `missingValues` and field `constraints`).
+* CLI: `python DEVO_enricher.py input.csv` — easy to integrate into workflows.
 
 # Requirements
 
