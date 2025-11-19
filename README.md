@@ -27,7 +27,7 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 │                 │ │  ┌────────────────────────────────────────────────┐    │  Validation │      │   
 │ ┌─────────────┐ │ │  │                                                ├───►│    Schema   ├────┐ │   
 │ │   Standard  │ │ │  │                                                │    └─────────────┘    │ │   
-│ │  .CSV file  ├─┼─┼─►│             **  DEVO_enricher  **         │                       │ │   
+│ │  .CSV file  ├─┼─┼─►│               **  DEVO_enricher  **            │                       │ │   
 │ └─────────────┘ │ │  │                                                │    ┌─────────────┐    │ │   
 │                 │ │  │                                                ├───►│   Enriched  │    │ │   
 │                 │ │  └────────────────────────────────────────────────┘    │  .iCSV file ├────┤ │   
