@@ -1,4 +1,4 @@
-# Contributing to make_icsv
+# Contributing to DEVO_enricher
 
 
 Thanks for your interest in contributing! We welcome bug reports, feature requests, documentation improvements, and pull requests. This document explains how to contribute and what to expect.
