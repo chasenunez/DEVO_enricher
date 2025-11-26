@@ -36,8 +36,6 @@ It uses the [frictionless](https://framework.frictionlessdata.io) library for re
 │               ◄─┼─┼────────────────────────────────────────┘ │
 └─────────────────┘ └──────────────────────────────────────────┘
 
-** This Program **
-
 ```
 
 # Features
