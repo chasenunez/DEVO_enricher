@@ -132,7 +132,6 @@ timestamp|temp_C|RH|station_id|lat|lon
 2020-01-01T00:00:00|2.5|0.41|ST123|46.95|7.44
 ...
 ```
-
 Notes:
 
 * `field_delimiter` in the metadata is chosen to avoid ambiguity (if the input CSV uses `,`, the tool prefers `|` for the iCSV header).
