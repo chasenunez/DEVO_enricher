@@ -1,4 +1,4 @@
-**DEVO_enricher** is a small, modular Python tool that:
+**DEVO_enricher** is one module of a larger Python tool that:
 - a plain comma separated values file (CSV)
 - inspects each column (type inference, min/max, missing values)
 - Generates a self-documented **iCSV** file (with `# iCSV 1.0 UTF-8`, `# [METADATA]`, `# [FIELDS]`, `# [DATA]` sections), and
