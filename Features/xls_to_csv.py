@@ -98,14 +98,14 @@ def main():
     # Load Excel file to get sheet names
     try:
         excel = ExcelFile(infile, engine=None)  # engine auto-detect (openpyxl or xlrd)
-    except Exception as e:
+    except (FileNotFoundError, ValueError, OSError) as e:
         print(f"Error opening Excel file '{infile}': {e}")
         return
 
     # Determine sheets to process
     try:
         sheets = get_sheet_list(excel, args.sheets)
-    except Exception as e:
+    except ValueError as e:
         print(f"Sheet selection error: {e}")
         return
 
@@ -113,7 +113,7 @@ def main():
         # Preview first few rows (raw, no header, to assist choosing header row)
         try:
             df_preview = pd.read_excel(infile, sheet_name=sheet, header=None, nrows=5, engine=None)
-        except Exception as e:
+        except (ValueError, OSError) as e:
             print(f"Failed to read sheet '{sheet}': {e}")
             continue
 
@@ -132,7 +132,7 @@ def main():
         # Convert the sheet to CSV
         try:
             convert_sheet_to_csv(infile, sheet, header_row, outpath)
-        except Exception as e:
+        except (ValueError, OSError) as e:
             print(f"Error converting sheet '{sheet}': {e}")
 
 if __name__ == "__main__":

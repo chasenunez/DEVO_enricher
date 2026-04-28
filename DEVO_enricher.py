@@ -1,25 +1,15 @@
-# csv_enrichment engine
-# trying to invert some of the frictionless code that makes a schema from iCSV's metadata section in order to ingest a normal CSV, and then spit out a metadata section that can be combined with the [DATA] cetion in order to make an iCSV. the benefit of doing it this way is that we can now *create* a metadata section that makes the best schema for data checking. ideally, then, researchers can just feed in a data csv, get back an icsv, and then have the ability to check their data, as well as ingest into envidat etc. with greater finadability, Accessability, nteroperability, and Reusability.
-
 #!/usr/bin/env python3
-"""
-make_icsv.py
+"""Generate a self-documented iCSV (1.0) and a Frictionless Table Schema from a plain CSV.
 
-This little ditty generates a self-documented iCSV (iCSV 1.0) from a plain CSV and write a
-Frictionless Table Schema JSON for validation.
-
-Usage:
-    python make_icsv.py input.csv [--delimiter DELIM] [--application APP] [--nodata NODATA]
-
-Notes:
-- Requires: frictionless (pip install frictionless)
-- The script uses the frictionless Resource to load the CSV and count rows/columns,
-  and uses built-in heuristics to infer types and simple constraints.
+Run `python DEVO_enricher.py --help` for usage.
 
 Development notes:
-- an earlier version of this code also attempted to make an iCSV from .xls/.xlsx documents, 
-  but that proved to be a bit to difficult to do in one step, so this it has been moved to a features branch for further/future development.
+- an earlier version of this code also attempted to make an iCSV from .xls/.xlsx documents,
+  but that proved to be a bit too difficult to do in one step, so this has been moved to a
+  features branch for further/future development.
 """
+# csv_enrichment engine
+# trying to invert some of the frictionless code that makes a schema from iCSV's metadata section in order to ingest a normal CSV, and then spit out a metadata section that can be combined with the [DATA] cetion in order to make an iCSV. the benefit of doing it this way is that we can now *create* a metadata section that makes the best schema for data checking. ideally, then, researchers can just feed in a data csv, get back an icsv, and then have the ability to check their data, as well as ingest into envidat etc. with greater finadability, Accessability, nteroperability, and Reusability.
 
 from __future__ import annotations
 import argparse
@@ -27,20 +17,15 @@ import csv
 import json
 import os
 import re
-import itertools
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional
 from itertools import islice
-
-from frictionless import Resource
 
 # Common placeholders considered as missing values
 COMMON_MISSING = {"", "NA", "N/A", "na", "n/a", "NULL", "null", "nan", "NaN", "-999", "-999.0", "-999.000000"} #it would be ideal if envidat had a standardized missing value, but alas.
 
 
-# -------------------------
 # Type inference utilities
-# -------------------------
 INT_RE = re.compile(r"^-?\d+$")
 FLOAT_RE = re.compile(r"^-?\d+\.\d+$")
 
@@ -62,7 +47,7 @@ def try_parse_datetime(s: str) -> bool:
         # fromisoformat supports many ISO-like formats but not all; ignore timezone complexities here
         datetime.fromisoformat(s)
         return True
-    except Exception:
+    except (ValueError, TypeError):
         pass
 
     # 2) Try a few common formats
@@ -83,7 +68,7 @@ def try_parse_datetime(s: str) -> bool:
         try:
             datetime.strptime(s, fmt)
             return True
-        except Exception:
+        except (ValueError, TypeError):
             continue
     return False
 
@@ -119,9 +104,7 @@ def infer_column_type(values: List[str], missing_values: set) -> str:
     return "string"
 
 
-# -------------------------
 # Aggregation / stats
-# -------------------------
 def compute_numeric_minmax(pruned: List[str], as_type: str) -> Tuple[Optional[float], Optional[float]]:
     """
     Given pruned (non-missing) list of numeric-like strings and a declared type,
@@ -135,7 +118,7 @@ def compute_numeric_minmax(pruned: List[str], as_type: str) -> Tuple[Optional[fl
         else:
             nums = [float(x) for x in pruned]
         return min(nums), max(nums)
-    except Exception:
+    except (ValueError, TypeError):
         return None, None
 
 
@@ -149,7 +132,7 @@ def compute_datetime_minmax(pruned: List[str]) -> Tuple[Optional[str], Optional[
             # try fromisoformat first, fallback to several formats
             try:
                 dt = datetime.fromisoformat(v)
-            except Exception:
+            except (ValueError, TypeError):
                 # try known formats
                 fmts = [
                     "%Y-%m-%d %H:%M:%S",
@@ -167,12 +150,12 @@ def compute_datetime_minmax(pruned: List[str]) -> Tuple[Optional[str], Optional[
                     try:
                         dt = datetime.strptime(v, fmt)
                         break
-                    except Exception:
+                    except (ValueError, TypeError):
                         pass
                 if dt is None:
                     continue
             parsed.append(dt)
-        except Exception:
+        except (ValueError, TypeError):
             continue
     if not parsed:
         return None, None
@@ -181,9 +164,7 @@ def compute_datetime_minmax(pruned: List[str]) -> Tuple[Optional[str], Optional[
     return min_dt, max_dt
 
 
-# -------------------------
 # CSV / Frictionless helpers
-# -------------------------
 def detect_delimiter(sample_text: str) -> str:
     """
     Use csv.Sniffer to detect delimiter. Fallback to comma.
@@ -191,31 +172,16 @@ def detect_delimiter(sample_text: str) -> str:
     try:
         dialect = csv.Sniffer().sniff(sample_text, delimiters=[",", "|", ";", ":", "\t", "/"])
         return dialect.delimiter
-    except Exception:
+    except csv.Error:
         return ","
 
 
-def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> Tuple[List[str], List[List[str]], int]:
-    """
-    Load header and rows using frictionless (and csv fallback). Returns (header, rows, row_count).
-    We still use csv module for reliable delimiter control, but frictionless is used to create a Resource
-    to show we used it (and for optional validation later).
-    """
-    # Try reading a small sample to detect delimiter if not provided
+def load_rows(path: str, delimiter: Optional[str] = None) -> Tuple[List[str], List[List[str]], int]:
+    """Load header and rows from a CSV. Returns (header, rows, row_count)."""
     with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-        with open(path, "r", encoding="utf-8") as fh:
-            sample = "".join(islice(fh, 10))  # reads at most 10 lines, no StopIteration
+        sample = "".join(islice(fh, 10))
     detected = detect_delimiter(sample) if delimiter is None else delimiter
 
-    # Use frictionless Resource to read and also verify we can open the file
-    try:
-        # frictionless will also infer schema if needed; we only instantiate to follow the requirement
-        _ = Resource(path, format="csv", control={"delimiter": detected})
-    except Exception:
-        # If frictionless fails, continue — csv fallback will handle it
-        pass
-
-    # Use csv module with the detected delimiter to build rows
     header = []
     rows: List[List[str]] = []
     with open(path, "r", encoding="utf-8", errors="ignore", newline="") as fh:
@@ -228,9 +194,7 @@ def load_rows_with_frictionless(path: str, delimiter: Optional[str] = None) -> T
     return header, rows, len(rows)
 
 
-# -------------------------
 # Build schema & metadata
-# -------------------------
 def build_frictionless_schema(header: List[str], col_infos: List[Dict[str, Any]], missing_values: List[str]) -> Dict[str, Any]:
     """
     Build a Frictionless-compatible schema (dict that can be dumped to JSON).
@@ -271,7 +235,7 @@ def build_icsv_metadata_section(
     md.append(f"field_delimiter = {field_delimiter}")
     md.append(f"rows = {rows_count}")
     md.append(f"columns = {len(header)}")
-    md.append(f"creation_date = {datetime.utcnow().isoformat()}Z")
+    md.append(f"creation_date = {datetime.now(timezone.utc).isoformat()}Z")
     if nodata_value is not None:
         md.append(f"nodata = {nodata_value}")
     if geometry_hint:
@@ -312,9 +276,7 @@ def build_fields_section(header: List[str], col_infos: List[Dict[str, Any]], fie
     return lines
 
 
-# -------------------------
 # iCSV writer
-# -------------------------
 def write_icsv(
     outpath: str,
     header_meta_lines: List[str],
@@ -351,9 +313,7 @@ def write_icsv(
             writer.writerow(r)
 
 
-# -------------------------
 # Heuristics for geometry/srid
-# -------------------------
 def detect_geometry_hint(header: List[str]) -> Tuple[Optional[str], Optional[str]]:
     """
     Basic heuristics: if header contains 'lat' and 'lon' (or 'latitude'/'longitude'),
@@ -377,9 +337,7 @@ def detect_geometry_hint(header: List[str]) -> Tuple[Optional[str], Optional[str
     return None, None
 
 
-# -------------------------
 # Main pipeline
-# -------------------------
 def make_icsv_from_csv(
     infile: str,
     out_icsv: Optional[str] = None,
@@ -396,7 +354,7 @@ def make_icsv_from_csv(
     if not out_schema:
         out_schema = os.path.splitext(infile)[0] + "_schema.json"
 
-    header, rows, row_count = load_rows_with_frictionless(infile, delimiter=user_delimiter)
+    header, rows, row_count = load_rows(infile, delimiter=user_delimiter)
 
     # Decide on field_delimiter for iCSV: default to '|' if input delimiter is comma to avoid common CSV pitfalls.
     # But prefer the detected delimiter if provided by user or if input file uses something else.
@@ -520,9 +478,7 @@ def make_icsv_from_csv(
     return out_icsv, out_schema
 
 
-# -------------------------
 # CLI
-# -------------------------
 def parse_args():
     p = argparse.ArgumentParser(description="Convert CSV to iCSV + Frictionless schema.")
     p.add_argument("infile", help="Input CSV file path")
